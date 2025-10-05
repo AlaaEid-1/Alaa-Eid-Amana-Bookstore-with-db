@@ -12,25 +12,40 @@ export default function CartPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load cart from localStorage
-    const storedCart = localStorage.getItem('cart');
-    if (storedCart) {
-      try {
-        const cart: CartItemType[] = JSON.parse(storedCart);
-        const itemsWithBooks = cart
-          .map(item => {
-            const book = books.find(b => b.id === item.bookId);
-            return book ? { book, quantity: item.quantity } : null;
-          })
-          .filter((item): item is { book: Book; quantity: number } => item !== null);
-        
-        setCartItems(itemsWithBooks);
-      } catch (error) {
-        console.error('Failed to parse cart from localStorage', error);
-        setCartItems([]);
+    const loadCart = async () => {
+      // Load cart from localStorage
+      const storedCart = localStorage.getItem('cart');
+      if (storedCart) {
+        try {
+          const cart: CartItemType[] = JSON.parse(storedCart);
+          const itemsWithBooks = await Promise.all(
+            cart.map(async (item) => {
+              try {
+                const response = await fetch(`/api/books/${item.bookId}`);
+                if (response.ok) {
+                  const book = await response.json();
+                  return { book, quantity: item.quantity };
+                } else {
+                  console.error(`Failed to fetch book ${item.bookId}`);
+                  return null;
+                }
+              } catch (error) {
+                console.error(`Error fetching book ${item.bookId}:`, error);
+                return null;
+              }
+            })
+          );
+          const validItems = itemsWithBooks.filter((item): item is { book: Book; quantity: number } => item !== null);
+          setCartItems(validItems);
+        } catch (error) {
+          console.error('Failed to parse cart from localStorage', error);
+          setCartItems([]);
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    loadCart();
   }, []);
 
   const updateQuantity = (bookId: string, newQuantity: number) => {

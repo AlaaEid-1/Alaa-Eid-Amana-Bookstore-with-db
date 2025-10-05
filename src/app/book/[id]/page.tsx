@@ -21,16 +21,29 @@ export default function BookDetailPage() {
 
   useEffect(() => {
     if (id) {
-      const foundBook = books.find((b) => b.id === id);
-      if (foundBook) {
-        setBook(foundBook);
-        // Get reviews for this book
-        const bookReviewsData = reviews.filter((review) => review.bookId === id);
-        setBookReviews(bookReviewsData);
-      } else {
-        setError('Book not found.');
-      }
-      setIsLoading(false);
+      const fetchBook = async () => {
+        try {
+          const response = await fetch(`/api/books/${id}`);
+          if (response.ok) {
+            const foundBook = await response.json();
+            setBook(foundBook);
+            // Get reviews for this book (keeping local for now)
+            const bookReviewsData = reviews.filter((review) => review.bookId === id);
+            setBookReviews(bookReviewsData);
+          } else if (response.status === 404) {
+            setError('Book not found.');
+          } else {
+            setError('Failed to load book.');
+          }
+        } catch (error) {
+          console.error('Error fetching book:', error);
+          setError('Failed to load book.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchBook();
     }
   }, [id]);
 
